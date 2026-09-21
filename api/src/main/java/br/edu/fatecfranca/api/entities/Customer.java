@@ -2,7 +2,10 @@ package br.edu.fatecfranca.api.entities;
 
 
 import java.time.LocalDate;
+import java.util.List;
 
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -12,7 +15,9 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+
 
 
 @Entity
@@ -68,6 +73,11 @@ public class Customer {
 
    @Column(nullable = false, unique = true)
    private String email;
+
+   @OneToMany(mappedBy = "customer")
+  
+   private List<Car> cars;
+
 
 
    public Customer() {
@@ -192,6 +202,17 @@ public class Customer {
    public void setEmail(String email) {
     this.email = email;
    }
+
+     @JsonIgnore
+     public List<Car> getCars() {
+       return cars;
+   }
+
+
+   public void setCars(List<Car> cars) {
+       this.cars = cars;
+   }
+
 
 
 }
