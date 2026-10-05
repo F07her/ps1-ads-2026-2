@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import br.edu.fatecfranca.api.entities.User;
+import br.edu.fatecfranca.api.dtos.UserRequest;
 import br.edu.fatecfranca.api.services.UserService;
 
 @RestController
@@ -40,29 +41,17 @@ public class UserController {
 	}
 
 	@PostMapping
-	public ResponseEntity<User> create(@RequestBody User user) {
-		if (user == null
-				|| user.getFullname() == null || user.getFullname().isBlank()
-				|| user.getUsername() == null || user.getUsername().isBlank()
-				|| user.getEmail() == null || user.getEmail().isBlank()
-				|| user.getPassword() == null || user.getPassword().isBlank()) {
+	public ResponseEntity<User> create(@RequestBody UserRequest request) {
+		if (isInvalid(request)) {
 			return ResponseEntity.badRequest().build();
 		}
 
-		if (user.getId() != null && service.existsById(user.getId())) {
+		if (service.existsByUsername(request.username()) || service.existsByEmail(request.email())) {
 			return ResponseEntity.status(HttpStatus.CONFLICT).build();
-		}
-
-		if (service.existsByUsername(user.getUsername()) || service.existsByEmail(user.getEmail())) {
-			return ResponseEntity.status(HttpStatus.CONFLICT).build();
-		}
-
-		if (user.getIsAdmin() == null) {
-			user.setIsAdmin(false);
 		}
 
 		try {
-			return ResponseEntity.status(HttpStatus.CREATED).body(service.create(user));
+			return ResponseEntity.status(HttpStatus.CREATED).body(service.create(request));
 		} catch (DataIntegrityViolationException e) {
 			return ResponseEntity.status(HttpStatus.CONFLICT).build();
 		}
@@ -81,17 +70,27 @@ public class UserController {
 	}
 
 	@PutMapping("/{id}")
-	public ResponseEntity<User> update(@PathVariable Long id, @RequestBody User user) {
-		if (user == null) {
+	public ResponseEntity<User> update(@PathVariable Long id, @RequestBody UserRequest request) {
+		if (isInvalid(request)) {
 			return ResponseEntity.badRequest().build();
 		}
 
-		if (!service.existsById(id)) {
-			return ResponseEntity.notFound().build();
-		}
+		return service.findById(id)
+				.map(user -> {
+					if ((!user.getUsername().equals(request.username())
+							&& service.existsByUsername(request.username()))
+							|| (!user.getEmail().equals(request.email())
+									&& service.existsByEmail(request.email()))) {
+						return ResponseEntity.status(HttpStatus.CONFLICT).<User>build();
+					}
 
-		user.setId(id);
-		return ResponseEntity.ok(service.update(user));
+					try {
+						return ResponseEntity.ok(service.update(id, request));
+					} catch (DataIntegrityViolationException e) {
+						return ResponseEntity.status(HttpStatus.CONFLICT).<User>build();
+					}
+				})
+				.orElse(ResponseEntity.notFound().build());
 	}
 
 	@PatchMapping("/{id}/email")
@@ -117,6 +116,14 @@ public class UserController {
 	}
 
 	public record EmailUpdateRequest(String email) {
+	}
+
+	private boolean isInvalid(UserRequest request) {
+		return request == null
+				|| request.fullname() == null || request.fullname().isBlank()
+				|| request.username() == null || request.username().isBlank()
+				|| request.email() == null || request.email().isBlank()
+				|| request.password() == null || request.password().isBlank();
 	}
 
 	@DeleteMapping("/{id}")

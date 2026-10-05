@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 
 import br.edu.fatecfranca.api.entities.Customer;
 import br.edu.fatecfranca.api.repositories.CustomerRepository;
+import br.edu.fatecfranca.api.dtos.CustomerRequest;
 
 
 @Service
@@ -17,9 +18,49 @@ public class CustomerService {
 
    private final CustomerRepository repository;
 
+   private void copyToEntity(
+       CustomerRequest request,
+       Customer customer) {
+
+
+       customer.setName(request.name());
+       customer.setIdentDocument(request.identDocument());
+       customer.setBirthDate(request.birthDate());
+       customer.setStreetName(request.streetName());
+       customer.setHouseNumber(request.houseNumber());
+       customer.setComplements(request.complements());
+       customer.setDistrict(request.district());
+       customer.setMunicipality(request.municipality());
+       customer.setState(request.state());
+       customer.setPhone(request.phone());
+       customer.setEmail(request.email());
+   }
+
+
    public CustomerService(CustomerRepository repository) {
        this.repository = repository;
    }
+
+   public Customer create(CustomerRequest request) {
+       Customer customer = new Customer();
+
+
+       copyToEntity(request, customer);
+
+
+       return repository.save(customer);
+   }
+
+    public Customer update(Long id, CustomerRequest request) {
+         Optional<Customer> optionalCustomer = repository.findById(id);
+         if (optionalCustomer.isPresent()) {
+              Customer customer = optionalCustomer.get();
+              copyToEntity(request, customer);
+              return repository.save(customer);
+         } else {
+              throw new RuntimeException("Customer not found with id: " + id);
+         }
+    }
 
    public long count() {
        return repository.count();

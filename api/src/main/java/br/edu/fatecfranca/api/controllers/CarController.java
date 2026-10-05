@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import br.edu.fatecfranca.api.entities.Car;
+import br.edu.fatecfranca.api.dtos.CarRequest;
 import br.edu.fatecfranca.api.services.CarService;
 
 @RestController
@@ -38,44 +39,16 @@ public class CarController {
     }
 
     @PostMapping
-    public ResponseEntity<Car> create(@RequestBody Car car) {
-        if (car == null) {
+    public ResponseEntity<Car> create(@RequestBody CarRequest request) {
+        if (isInvalid(request)) {
             return ResponseEntity.badRequest().build();
         }
 
-        if (car.getModel() == null || car.getModel().isBlank()) {
+        if (!service.customerExistsById(request.customerId())) {
             return ResponseEntity.badRequest().build();
         }
 
-        if (car.getBrand() == null || car.getBrand().isBlank()) {
-            return ResponseEntity.badRequest().build();
-        }
-
-        if (car.getColor() == null || car.getColor().isBlank()) {
-            return ResponseEntity.badRequest().build();
-        }
-
-        if (car.getManufactureYear() == null) {
-            return ResponseEntity.badRequest().build();
-        }
-
-        if (car.getLicensePlate() == null || car.getLicensePlate().isBlank()) {
-            return ResponseEntity.badRequest().build();
-        }
-
-        if (car.getCustomer() == null || car.getCustomer().getId() == null) {
-            return ResponseEntity.badRequest().build();
-        }
-
-        if (car.getId() != null && service.existsById(car.getId())) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).build();
-        }
-
-        if (car.getImported() == null) {
-            car.setImported(false);
-        }
-
-        Car savedCar = service.create(car);
+        Car savedCar = service.create(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(savedCar);
     }
 
@@ -92,8 +65,8 @@ public class CarController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Car> update(@PathVariable Long id, @RequestBody Car car) {
-        if (car == null) {
+    public ResponseEntity<Car> update(@PathVariable Long id, @RequestBody CarRequest request) {
+        if (isInvalid(request)) {
             return ResponseEntity.badRequest().build();
         }
 
@@ -101,8 +74,11 @@ public class CarController {
             return ResponseEntity.notFound().build();
         }
 
-        car.setId(id);
-        Car updatedCar = service.update(car);
+        if (!service.customerExistsById(request.customerId())) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        Car updatedCar = service.update(id, request);
         return ResponseEntity.ok(updatedCar);
     }
 
@@ -114,6 +90,16 @@ public class CarController {
 
         service.deleteById(id);
         return ResponseEntity.noContent().build();
+    }
+
+    private boolean isInvalid(CarRequest request) {
+        return request == null
+                || request.model() == null || request.model().isBlank()
+                || request.brand() == null || request.brand().isBlank()
+                || request.color() == null || request.color().isBlank()
+                || request.manufactureYear() == null
+                || request.licensePlate() == null || request.licensePlate().isBlank()
+                || request.customerId() == null;
     }
 }
 
