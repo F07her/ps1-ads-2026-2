@@ -1,3 +1,4 @@
+import br.edu.fatecfranca.api.dtos.UserResponse;
 package br.edu.fatecfranca.api.controllers;
 
 import java.util.List;
@@ -21,6 +22,10 @@ import br.edu.fatecfranca.api.services.UserService;
 
 import jakarta.validation.Valid;
 
+import br.edu.fatecfranca.api.dtos.LoginRequest;
+import br.edu.fatecfranca.api.dtos.UserResponse;
+
+
 @RestController
 @RequestMapping("/users")
 public class UserController {
@@ -30,6 +35,20 @@ public class UserController {
 	public UserController(UserService service) {
 		this.service = service;
 	}
+
+	@PostMapping("/login")
+   public ResponseEntity<UserResponse> login(
+           @Valid @RequestBody LoginRequest request) {
+
+
+       return service.authenticate(request)
+               .map(UserResponse::new)
+               .map(ResponseEntity::ok)
+               .orElseGet(() -> ResponseEntity
+                       .status(HttpStatus.UNAUTHORIZED)
+                       .build());
+   }
+
 
 	@GetMapping("/status")
 	public ResponseEntity<String> status() {
@@ -42,58 +61,55 @@ public class UserController {
 		}
 	}
 
-	@PostMapping
-	public ResponseEntity<User> create( @Valid @RequestBody UserRequest request) {
-		if (isInvalid(request)) {
-			return ResponseEntity.badRequest().build();
-		}
+	   @PostMapping
+   public ResponseEntity<UserResponse> create(
+           @RequestBody UserRequest request) {
 
-		if (service.existsByUsername(request.username()) || service.existsByEmail(request.email())) {
-			return ResponseEntity.status(HttpStatus.CONFLICT).build();
-		}
 
-		try {
-			return ResponseEntity.status(HttpStatus.CREATED).body(service.create(request));
-		} catch (DataIntegrityViolationException e) {
-			return ResponseEntity.status(HttpStatus.CONFLICT).build();
-		}
-	}
+       User savedUser = service.create(request);
+
+
+       return ResponseEntity
+               .status(HttpStatus.CREATED)
+               .body(new UserResponse(savedUser));
+   }
+
 
 	@GetMapping
-	public List<User> findAll() {
-		return service.findAll();
-	}
+   public List<UserResponse> findAll() {
+       return service.findAll()
+               .stream()
+               .map(UserResponse::new)
+               .toList();
+   }
+
 
 	@GetMapping("/{id}")
-	public ResponseEntity<User> findById(@PathVariable Long id) {
-		return service.findById(id)
-				.map(ResponseEntity::ok)
-				.orElse(ResponseEntity.notFound().build());
-	}
+   public ResponseEntity<UserResponse> findById(@PathVariable Long id) {
+       return service.findById(id)
+               .map(UserResponse::new)
+               .map(ResponseEntity::ok)
+               .orElse(ResponseEntity.notFound().build());
+   }
+
 
 	@PutMapping("/{id}")
-	public ResponseEntity<User> update(@PathVariable Long id, @Valid @RequestBody UserRequest request) {
-		if (isInvalid(request)) {
-			return ResponseEntity.badRequest().build();
-		}
+   public ResponseEntity<UserResponse> update(
+           @PathVariable Long id,
+           @RequestBody UserRequest request) {
 
-		return service.findById(id)
-				.map(user -> {
-					if ((!user.getUsername().equals(request.username())
-							&& service.existsByUsername(request.username()))
-							|| (!user.getEmail().equals(request.email())
-									&& service.existsByEmail(request.email()))) {
-						return ResponseEntity.status(HttpStatus.CONFLICT).<User>build();
-					}
 
-					try {
-						return ResponseEntity.ok(service.update(id, request));
-					} catch (DataIntegrityViolationException e) {
-						return ResponseEntity.status(HttpStatus.CONFLICT).<User>build();
-					}
-				})
-				.orElse(ResponseEntity.notFound().build());
-	}
+       if (!service.existsById(id)) {
+           return ResponseEntity.notFound().build();
+       }
+
+
+       User updatedUser = service.update(id, request);
+
+
+       return ResponseEntity.ok(new UserResponse(updatedUser));
+   }
+
 
 	@PatchMapping("/{id}/email")
 	public ResponseEntity<User> updateEmail(@PathVariable Long id, @RequestBody EmailUpdateRequest request) {
